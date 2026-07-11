@@ -20,6 +20,7 @@
   --shadow-md: 0 8px 24px rgba(79, 70, 229, 0.1);
   --shadow-lg: 0 16px 40px rgba(22, 33, 60, 0.12);
   --radius: 18px;
+  --header-height: 92px;
 }
 
 * {
@@ -48,7 +49,7 @@ body {
   z-index: 20;
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #db2777 120%);
   color: #fff;
-  padding: 1.4rem clamp(1rem, 4vw, 2.5rem);
+  padding: 1.2rem clamp(1rem, 4vw, 2.5rem);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -59,7 +60,7 @@ body {
 
 .header h1 {
   margin: 0;
-  font-size: clamp(1.3rem, 2.5vw, 1.75rem);
+  font-size: clamp(1.2rem, 2.5vw, 1.6rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   display: flex;
@@ -69,14 +70,14 @@ body {
 
 .header h1::before {
   content: "📐";
-  font-size: 1.5em;
+  font-size: 1.4em;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
 .header p {
-  margin: 0.3rem 0 0;
+  margin: 0.25rem 0 0;
   color: rgba(255, 255, 255, 0.85);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
 }
 
 .header-actions {
@@ -108,15 +109,121 @@ body {
   background: rgba(239, 68, 68, 0.95);
 }
 
-/* ---------- Layout ---------- */
+/* ---------- App shell (sidebar + main) ---------- */
 
-.layout {
-  padding: clamp(1rem, 3vw, 2rem);
-  max-width: 1200px;
-  margin: 0 auto;
+.app-shell {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 270px 1fr;
   gap: 1.4rem;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: clamp(1rem, 3vw, 2rem);
+  align-items: start;
+}
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  position: sticky;
+  top: calc(var(--header-height) + 1rem);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem;
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  gap: 1rem;
+  max-height: calc(100vh - var(--header-height) - 2rem);
+  overflow: auto;
+}
+
+.sidebar-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.sidebar-title::before {
+  content: "";
+  width: 0.35rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--primary), var(--accent));
+  display: inline-block;
+}
+
+.class-nav {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  text-align: right;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 0.65rem 0.8rem;
+  font-weight: 600;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.nav-item:hover {
+  background: var(--primary-soft);
+  transform: none;
+  box-shadow: none;
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.nav-icon {
+  font-size: 1.1rem;
+}
+
+.nav-label {
+  flex: 1;
+}
+
+.nav-count {
+  background: rgba(79, 70, 229, 0.12);
+  color: var(--primary-dark);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.05rem 0.55rem;
+}
+
+.nav-item.active .nav-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.sidebar-add-form {
+  display: grid;
+  gap: 0.55rem;
+  border-top: 1px dashed var(--border);
+  padding-top: 1rem;
+}
+
+/* ---------- Main content ---------- */
+
+.main-content {
+  display: grid;
+  gap: 1.4rem;
+  min-width: 0;
 }
 
 .panel {
@@ -150,11 +257,24 @@ body {
   display: inline-block;
 }
 
+.class-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.small-btn {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+}
+
 /* ---------- Overview cards ---------- */
 
 .overview-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.9rem;
 }
 
@@ -199,13 +319,48 @@ body {
   margin-top: 0.15rem;
 }
 
-/* ---------- Forms ---------- */
+/* ---------- Class summary cards (overview) ---------- */
 
-.forms-grid {
+.class-summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1.2rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.9rem;
 }
+
+.class-summary-card {
+  text-align: right;
+  background: linear-gradient(160deg, #fafbff 0%, #ffffff 100%);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  cursor: pointer;
+  box-shadow: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.class-summary-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+}
+
+.class-summary-card h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.summary-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--subtle);
+  align-items: center;
+}
+
+/* ---------- Forms ---------- */
 
 .inline-form {
   display: grid;
@@ -216,11 +371,23 @@ body {
   padding: 1rem;
 }
 
+.student-add-form {
+  margin-top: 1rem;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+}
+
 .test-form,
 .curriculum-form {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   align-items: end;
   margin-bottom: 1rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 label {
@@ -283,36 +450,7 @@ button:active {
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
-/* ---------- Class board ---------- */
-
-.class-board {
-  margin-top: 1.1rem;
-  padding: 1rem 1.1rem;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: linear-gradient(160deg, #fafbff 0%, #ffffff 100%);
-}
-
-.class-board:first-child {
-  margin-top: 0;
-}
-
-.class-board h3 {
-  margin: 0 0 0.8rem;
-  font-size: 1.05rem;
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--primary-soft);
-  color: var(--primary-dark);
-  padding: 0.3rem 0.9rem;
-  border-radius: 999px;
-}
-
-.class-board h3::before {
-  content: "🏫";
-}
+/* ---------- Student cards ---------- */
 
 .student-grid {
   display: grid;
@@ -333,6 +471,11 @@ button:active {
   transform: translateY(-3px);
   box-shadow: var(--shadow-md);
   border-color: var(--primary);
+}
+
+.student-card.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
 }
 
 .student-card h4 {
@@ -487,6 +630,21 @@ tbody tr:hover {
 
 /* ---------- Responsive ---------- */
 
+@media (max-width: 860px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    max-height: none;
+  }
+
+  .class-nav {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
 @media (max-width: 640px) {
   .header {
     flex-direction: column;
@@ -494,7 +652,8 @@ tbody tr:hover {
   }
 
   .test-form,
-  .curriculum-form {
+  .curriculum-form,
+  .student-add-form {
     grid-template-columns: 1fr;
   }
 }

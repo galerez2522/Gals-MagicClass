@@ -1,5 +1,6 @@
 const STORAGE_KEY = "aharens-math-dashboard-v1";
 const SHARED_STATE_PARAM = "data";
+const OVERVIEW_VIEW = "__overview__";
 
 const defaultState = {
   classes: [
@@ -15,24 +16,14 @@ const defaultState = {
   tests: [],
   curriculum: [],
   selectedStudent: null,
+  selectedView: OVERVIEW_VIEW,
 };
 
 let state = resolveInitialState();
 
-const overviewCards = document.getElementById("overviewCards");
-const classVisualBoard = document.getElementById("classVisualBoard");
-const studentDetail = document.getElementById("studentDetail");
-const testsTableBody = document.getElementById("testsTableBody");
-const curriculumTableBody = document.getElementById("curriculumTableBody");
-
+const classNav = document.getElementById("classNav");
+const mainContent = document.getElementById("mainContent");
 const addClassForm = document.getElementById("addClassForm");
-const addStudentForm = document.getElementById("addStudentForm");
-const addTestForm = document.getElementById("addTestForm");
-const addCurriculumForm = document.getElementById("addCurriculumForm");
-
-const studentClassSelect = document.getElementById("studentClassSelect");
-const testClassSelect = document.getElementById("testClassSelect");
-const curriculumClassSelect = document.getElementById("curriculumClassSelect");
 const resetDataBtn = document.getElementById("resetDataBtn");
 const exportLinkBtn = document.getElementById("exportLinkBtn");
 
@@ -42,74 +33,10 @@ addClassForm.addEventListener("submit", (event) => {
   const className = String(formData.get("className")).trim();
   if (!className) return;
 
-  state.classes.push({ id: crypto.randomUUID(), name: className, students: [] });
+  const newClass = { id: crypto.randomUUID(), name: className, students: [] };
+  state.classes.push(newClass);
+  state.selectedView = newClass.id;
   addClassForm.reset();
-  renderAll();
-});
-
-addStudentForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const formData = new FormData(addStudentForm);
-  const classId = String(formData.get("classId"));
-  const studentName = String(formData.get("studentName")).trim();
-  if (!classId || !studentName) return;
-
-  const classItem = state.classes.find((item) => item.id === classId);
-  if (!classItem) return;
-
-  classItem.students.push({
-    id: crypto.randomUUID(),
-    name: studentName,
-    progress: 0,
-    understanding: 0,
-    notes: [],
-  });
-
-  addStudentForm.reset();
-  renderAll();
-});
-
-addTestForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const formData = new FormData(addTestForm);
-  const classId = String(formData.get("classId"));
-  const topic = String(formData.get("topic")).trim();
-  const date = String(formData.get("date"));
-  const average = Number(formData.get("average"));
-  if (!classId || !topic || !date || Number.isNaN(average)) return;
-
-  state.tests.push({
-    id: crypto.randomUUID(),
-    classId,
-    topic,
-    date,
-    average: clamp(average, 0, 100),
-  });
-
-  addTestForm.reset();
-  renderAll();
-});
-
-addCurriculumForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const formData = new FormData(addCurriculumForm);
-  const classId = String(formData.get("classId"));
-  const topic = String(formData.get("topic")).trim();
-  const status = String(formData.get("status"));
-  const coverage = Number(formData.get("coverage"));
-  const note = String(formData.get("note")).trim();
-  if (!topic || Number.isNaN(coverage)) return;
-
-  state.curriculum.push({
-    id: crypto.randomUUID(),
-    classId: classId || null,
-    topic,
-    status,
-    coverage: clamp(coverage, 0, 100),
-    note,
-  });
-
-  addCurriculumForm.reset();
   renderAll();
 });
 
@@ -139,30 +66,65 @@ exportLinkBtn.addEventListener("click", async () => {
 });
 
 function renderAll() {
-  renderSelects();
-  renderOverview();
-  renderClassBoard();
-  renderStudentDetail();
-  renderTestsTable();
-  renderCurriculumTable();
+  renderSidebar();
+  renderMain();
   saveState();
 }
 
-function renderSelects() {
-  const classOptions = state.classes.map((classItem) => `<option value="${classItem.id}">${classItem.name}</option>`).join("");
-  studentClassSelect.innerHTML = classOptions;
-  testClassSelect.innerHTML = classOptions;
-  curriculumClassSelect.innerHTML = `<option value="">כללי</option>${classOptions}`;
+/* ---------- Sidebar ---------- */
+
+function renderSidebar() {
+  const overviewActive = state.selectedView === OVERVIEW_VIEW ? "active" : "";
+  const classesMarkup = state.classes
+    .map((classItem) => {
+      const active = state.selectedView === classItem.id ? "active" : "";
+      return `
+        <button class="nav-item ${active}" data-view="${classItem.id}">
+          <span class="nav-icon">🏫</span>
+          <span class="nav-label">${classItem.name}</span>
+          <span class="nav-count">${classItem.students.length}</span>
+        </button>
+      `;
+    })
+    .join("");
+
+  classNav.innerHTML = `
+    <button class="nav-item ${overviewActive}" data-view="${OVERVIEW_VIEW}">
+      <span class="nav-icon">✨</span>
+      <span class="nav-label">סקירה כללית</span>
+    </button>
+    ${classesMarkup}
+  `;
+
+  classNav.querySelectorAll(".nav-item").forEach((item) => {
+    item.addEventListener("click", () => {
+      state.selectedView = item.getAttribute("data-view");
+      state.selectedStudent = null;
+      renderAll();
+    });
+  });
 }
 
-function renderOverview() {
+/* ---------- Main content ---------- */
+
+function renderMain() {
+  if (state.selectedView === OVERVIEW_VIEW) {
+    renderOverviewView();
+  } else {
+    const classItem = state.classes.find((item) => item.id === state.selectedView);
+    if (!classItem) {
+      state.selectedView = OVERVIEW_VIEW;
+      renderOverviewView();
+      return;
+    }
+    renderClassView(classItem);
+  }
+}
+
+function renderOverviewView() {
   const allStudents = state.classes.flatMap((classItem) => classItem.students);
-  const avgProgress = allStudents.length
-    ? Math.round(allStudents.reduce((sum, student) => sum + student.progress, 0) / allStudents.length)
-    : 0;
-  const avgUnderstanding = allStudents.length
-    ? Math.round(allStudents.reduce((sum, student) => sum + student.understanding, 0) / allStudents.length)
-    : 0;
+  const avgProgress = average(allStudents.map((s) => s.progress));
+  const avgUnderstanding = average(allStudents.map((s) => s.understanding));
   const completedCurriculum = state.curriculum.filter((item) => item.status === "completed").length;
 
   const cards = [
@@ -174,63 +136,298 @@ function renderOverview() {
     { label: "חומר שהושלם", value: `${completedCurriculum}/${state.curriculum.length}` },
   ];
 
-  overviewCards.innerHTML = cards
-    .map((card) => `<article class="overview-card"><div class="label">${card.label}</div><div class="value">${card.value}</div></article>`)
-    .join("");
-}
+  const classSummaries = state.classes.length
+    ? state.classes
+        .map((classItem) => {
+          const classAvgUnderstanding = average(classItem.students.map((s) => s.understanding));
+          const classTests = state.tests.filter((t) => t.classId === classItem.id).length;
+          return `
+            <button class="class-summary-card" data-view="${classItem.id}">
+              <h3>🏫 ${classItem.name}</h3>
+              <div class="summary-stats">
+                <span>👥 ${classItem.students.length} תלמידים</span>
+                <span>🧪 ${classTests} מבחנים</span>
+                <span class="status-pill ${getStatusClass(classAvgUnderstanding)}">הבנה: ${classAvgUnderstanding}%</span>
+              </div>
+            </button>
+          `;
+        })
+        .join("")
+    : `<p class="empty-state">אין עדיין כיתות. הוסיפי כיתה בתפריט הצד.</p>`;
 
-function renderClassBoard() {
-  classVisualBoard.innerHTML = state.classes
-    .map((classItem) => {
-      const studentsMarkup = classItem.students.length
-        ? classItem.students
-            .map((student) => {
-              const statusClass = getStatusClass(student.understanding);
-              return `
-                <article class="student-card" data-class-id="${classItem.id}" data-student-id="${student.id}">
-                  <h4>${student.name}</h4>
-                  <span class="status-pill ${statusClass}">הבנה: ${student.understanding}%</span>
-                  <div class="meter"><span style="width:${student.progress}%"></span></div>
-                  <small>התקדמות בחומר: ${student.progress}%</small>
-                </article>
-              `;
-            })
-            .join("")
-        : `<p class="empty-state">אין עדיין תלמידים בכיתה הזו.</p>`;
+  mainContent.innerHTML = `
+    <section class="panel">
+      <h2>✨ סקירה כללית</h2>
+      <div class="overview-cards">
+        ${cards.map((card) => `<article class="overview-card"><div class="label">${card.label}</div><div class="value">${card.value}</div></article>`).join("")}
+      </div>
+    </section>
+    <section class="panel">
+      <h2>🏫 הכיתות</h2>
+      <div class="class-summary-grid">${classSummaries}</div>
+    </section>
+  `;
 
-      return `
-        <section class="class-board">
-          <h3>${classItem.name}</h3>
-          <div class="student-grid">${studentsMarkup}</div>
-        </section>
-      `;
-    })
-    .join("");
-
-  classVisualBoard.querySelectorAll(".student-card").forEach((card) => {
+  mainContent.querySelectorAll(".class-summary-card").forEach((card) => {
     card.addEventListener("click", () => {
-      state.selectedStudent = {
-        classId: card.getAttribute("data-class-id"),
-        studentId: card.getAttribute("data-student-id"),
-      };
-      renderStudentDetail();
-      saveState();
+      state.selectedView = card.getAttribute("data-view");
+      state.selectedStudent = null;
+      renderAll();
     });
   });
 }
 
-function renderStudentDetail() {
-  if (!state.selectedStudent) {
-    studentDetail.className = "student-detail empty-state";
-    studentDetail.textContent = "בחרי תלמיד/ה מהתצוגה הוויזואלית כדי לעדכן התקדמות והערות.";
-    return;
-  }
+function renderClassView(classItem) {
+  const classTests = state.tests
+    .filter((test) => test.classId === classItem.id)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const classCurriculum = state.curriculum.filter((item) => item.classId === classItem.id);
 
-  const classItem = state.classes.find((item) => item.id === state.selectedStudent.classId);
-  const student = classItem?.students.find((item) => item.id === state.selectedStudent.studentId);
-  if (!classItem || !student) {
+  const avgProgress = average(classItem.students.map((s) => s.progress));
+  const avgUnderstanding = average(classItem.students.map((s) => s.understanding));
+  const completedCurriculum = classCurriculum.filter((item) => item.status === "completed").length;
+
+  const cards = [
+    { label: "תלמידים", value: classItem.students.length },
+    { label: "ממוצע התקדמות", value: `${avgProgress}%` },
+    { label: "ממוצע הבנה", value: `${avgUnderstanding}%` },
+    { label: "מבחנים", value: classTests.length },
+    { label: "חומר שהושלם", value: `${completedCurriculum}/${classCurriculum.length}` },
+  ];
+
+  const studentsMarkup = classItem.students.length
+    ? classItem.students
+        .map((student) => {
+          const statusClass = getStatusClass(student.understanding);
+          const selected =
+            state.selectedStudent?.studentId === student.id ? "selected" : "";
+          return `
+            <article class="student-card ${selected}" data-student-id="${student.id}">
+              <h4>${student.name}</h4>
+              <span class="status-pill ${statusClass}">הבנה: ${student.understanding}%</span>
+              <div class="meter"><span style="width:${student.progress}%"></span></div>
+              <small>התקדמות בחומר: ${student.progress}%</small>
+            </article>
+          `;
+        })
+        .join("")
+    : `<p class="empty-state">אין עדיין תלמידים בכיתה הזו. הוסיפי תלמיד/ה למטה.</p>`;
+
+  const testsMarkup = classTests.length
+    ? classTests
+        .map((test) => `<tr><td>${test.date}</td><td>${test.topic}</td><td>${test.average}</td></tr>`)
+        .join("")
+    : `<tr><td colspan="3" class="empty-state">אין מבחנים עדיין.</td></tr>`;
+
+  const curriculumMarkup = classCurriculum.length
+    ? classCurriculum
+        .map(
+          (item) => `
+            <tr>
+              <td>${item.topic}</td>
+              <td>${statusLabel(item.status)}</td>
+              <td>${item.coverage}%</td>
+              <td>${item.note || "-"}</td>
+            </tr>
+          `,
+        )
+        .join("")
+    : `<tr><td colspan="4" class="empty-state">אין פריטי חומר לימודי עדיין.</td></tr>`;
+
+  mainContent.innerHTML = `
+    <section class="panel class-header-panel">
+      <div class="class-header-row">
+        <h2>🏫 כיתה ${classItem.name}</h2>
+        <button id="deleteClassBtn" class="danger-btn small-btn">מחיקת כיתה</button>
+      </div>
+      <div class="overview-cards">
+        ${cards.map((card) => `<article class="overview-card"><div class="label">${card.label}</div><div class="value">${card.value}</div></article>`).join("")}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>🎨 התלמידים בכיתה</h2>
+      <div class="student-grid">${studentsMarkup}</div>
+      <form id="addStudentForm" class="inline-form student-add-form">
+        <label>
+          שם תלמיד/ה
+          <input name="studentName" required placeholder="שם מלא" />
+        </label>
+        <button type="submit">+ הוספת תלמיד/ה</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>📝 מעקב אישי והערות</h2>
+      <div id="studentDetail" class="student-detail"></div>
+    </section>
+
+    <section class="panel">
+      <h2>🧪 מעקב מבחנים</h2>
+      <form id="addTestForm" class="inline-form test-form">
+        <label>
+          נושא
+          <input name="topic" required placeholder="למשל: פונקציות" />
+        </label>
+        <label>
+          תאריך
+          <input type="date" name="date" required />
+        </label>
+        <label>
+          ממוצע כיתתי
+          <input type="number" name="average" min="0" max="100" step="1" required />
+        </label>
+        <button type="submit">הוספת מבחן</button>
+      </form>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>תאריך</th><th>נושא</th><th>ממוצע</th></tr>
+          </thead>
+          <tbody>${testsMarkup}</tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>📚 מעקב חומר לימודי</h2>
+      <form id="addCurriculumForm" class="inline-form curriculum-form">
+        <label>
+          נושא חומר
+          <input name="topic" required placeholder="למשל: טריגונומטריה" />
+        </label>
+        <label>
+          סטטוס
+          <select name="status" required>
+            <option value="planned">מתוכנן</option>
+            <option value="in_progress">בתהליך</option>
+            <option value="completed">הושלם</option>
+          </select>
+        </label>
+        <label>
+          התקדמות %
+          <input type="number" name="coverage" min="0" max="100" step="5" value="0" required />
+        </label>
+        <label class="full-width">
+          הערה
+          <input name="note" placeholder="למשל: נדרש עוד תרגול בית" />
+        </label>
+        <button type="submit">הוספת פריט חומר</button>
+      </form>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>נושא</th><th>סטטוס</th><th>כיסוי</th><th>הערה</th></tr>
+          </thead>
+          <tbody>${curriculumMarkup}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+
+  bindClassViewEvents(classItem);
+  renderStudentDetail(classItem);
+}
+
+function bindClassViewEvents(classItem) {
+  document.getElementById("deleteClassBtn").addEventListener("click", () => {
+    const shouldDelete = window.confirm(`למחוק את כיתה ${classItem.name} וכל הנתונים שלה?`);
+    if (!shouldDelete) return;
+
+    state.classes = state.classes.filter((item) => item.id !== classItem.id);
+    state.tests = state.tests.filter((test) => test.classId !== classItem.id);
+    state.curriculum = state.curriculum.filter((item) => item.classId !== classItem.id);
+    state.selectedView = OVERVIEW_VIEW;
     state.selectedStudent = null;
-    renderStudentDetail();
+    renderAll();
+  });
+
+  const addStudentForm = document.getElementById("addStudentForm");
+  addStudentForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formData = new FormData(addStudentForm);
+    const studentName = String(formData.get("studentName")).trim();
+    if (!studentName) return;
+
+    classItem.students.push({
+      id: crypto.randomUUID(),
+      name: studentName,
+      progress: 0,
+      understanding: 0,
+      notes: [],
+    });
+
+    addStudentForm.reset();
+    renderAll();
+  });
+
+  const addTestForm = document.getElementById("addTestForm");
+  addTestForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formData = new FormData(addTestForm);
+    const topic = String(formData.get("topic")).trim();
+    const date = String(formData.get("date"));
+    const testAverage = Number(formData.get("average"));
+    if (!topic || !date || Number.isNaN(testAverage)) return;
+
+    state.tests.push({
+      id: crypto.randomUUID(),
+      classId: classItem.id,
+      topic,
+      date,
+      average: clamp(testAverage, 0, 100),
+    });
+
+    addTestForm.reset();
+    renderAll();
+  });
+
+  const addCurriculumForm = document.getElementById("addCurriculumForm");
+  addCurriculumForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formData = new FormData(addCurriculumForm);
+    const topic = String(formData.get("topic")).trim();
+    const status = String(formData.get("status"));
+    const coverage = Number(formData.get("coverage"));
+    const note = String(formData.get("note")).trim();
+    if (!topic || Number.isNaN(coverage)) return;
+
+    state.curriculum.push({
+      id: crypto.randomUUID(),
+      classId: classItem.id,
+      topic,
+      status,
+      coverage: clamp(coverage, 0, 100),
+      note,
+    });
+
+    addCurriculumForm.reset();
+    renderAll();
+  });
+
+  mainContent.querySelectorAll(".student-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      state.selectedStudent = {
+        classId: classItem.id,
+        studentId: card.getAttribute("data-student-id"),
+      };
+      renderAll();
+    });
+  });
+}
+
+function renderStudentDetail(classItem) {
+  const studentDetail = document.getElementById("studentDetail");
+  if (!studentDetail) return;
+
+  const student =
+    state.selectedStudent?.classId === classItem.id
+      ? classItem.students.find((item) => item.id === state.selectedStudent.studentId)
+      : null;
+
+  if (!student) {
+    studentDetail.className = "student-detail";
+    studentDetail.innerHTML = `<p class="empty-state">בחרי תלמיד/ה מהרשימה למעלה כדי לעדכן התקדמות והערות.</p>`;
     return;
   }
 
@@ -241,7 +438,7 @@ function renderStudentDetail() {
   studentDetail.className = "student-detail";
   studentDetail.innerHTML = `
     <div>
-      <h3>${student.name} · ${classItem.name}</h3>
+      <h3>${student.name}</h3>
       <p>עדכני התקדמות, רמת הבנה והוסיפי הערות שוטפות.</p>
     </div>
     <form id="studentUpdateForm" class="inline-form">
@@ -257,7 +454,10 @@ function renderStudentDetail() {
         הערה חדשה
         <textarea name="newNote" rows="2" placeholder="כתבי תצפית/הערה להמשך מעקב"></textarea>
       </label>
-      <button type="submit">שמירת עדכון</button>
+      <div class="form-actions">
+        <button type="submit">שמירת עדכון</button>
+        <button type="button" id="removeStudentBtn" class="danger-btn">הסרת תלמיד/ה</button>
+      </div>
     </form>
     <section>
       <h4>הערות קודמות</h4>
@@ -282,38 +482,18 @@ function renderStudentDetail() {
 
     renderAll();
   });
+
+  document.getElementById("removeStudentBtn").addEventListener("click", () => {
+    const shouldRemove = window.confirm(`להסיר את ${student.name} מהכיתה?`);
+    if (!shouldRemove) return;
+
+    classItem.students = classItem.students.filter((item) => item.id !== student.id);
+    state.selectedStudent = null;
+    renderAll();
+  });
 }
 
-function renderTestsTable() {
-  const sortedTests = [...state.tests].sort((a, b) => b.date.localeCompare(a.date));
-  testsTableBody.innerHTML = sortedTests.length
-    ? sortedTests
-        .map((test) => {
-          const className = state.classes.find((item) => item.id === test.classId)?.name ?? "לא משויך";
-          return `<tr><td>${test.date}</td><td>${className}</td><td>${test.topic}</td><td>${test.average}</td></tr>`;
-        })
-        .join("")
-    : `<tr><td colspan="4" class="empty-state">אין מבחנים עדיין.</td></tr>`;
-}
-
-function renderCurriculumTable() {
-  curriculumTableBody.innerHTML = state.curriculum.length
-    ? state.curriculum
-        .map((item) => {
-          const className = item.classId ? state.classes.find((classItem) => classItem.id === item.classId)?.name : "כללי";
-          return `
-            <tr>
-              <td>${className || "כללי"}</td>
-              <td>${item.topic}</td>
-              <td>${statusLabel(item.status)}</td>
-              <td>${item.coverage}%</td>
-              <td>${item.note || "-"}</td>
-            </tr>
-          `;
-        })
-        .join("")
-    : `<tr><td colspan="5" class="empty-state">אין פריטי חומר לימודי עדיין.</td></tr>`;
-}
+/* ---------- Helpers ---------- */
 
 function statusLabel(status) {
   if (status === "completed") return "הושלם";
@@ -330,6 +510,13 @@ function getStatusClass(understanding) {
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
+
+function average(values) {
+  if (!values.length) return 0;
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+/* ---------- State persistence & sharing ---------- */
 
 function loadState() {
   const rawState = localStorage.getItem(STORAGE_KEY);
@@ -415,11 +602,18 @@ function normalizeState(parsed) {
     return structuredClone(defaultState);
   }
 
+  const classes = Array.isArray(parsed.classes) ? parsed.classes : structuredClone(defaultState.classes);
+  const selectedView =
+    parsed.selectedView === OVERVIEW_VIEW || classes.some((item) => item.id === parsed.selectedView)
+      ? parsed.selectedView
+      : OVERVIEW_VIEW;
+
   return {
-    classes: Array.isArray(parsed.classes) ? parsed.classes : structuredClone(defaultState.classes),
+    classes,
     tests: Array.isArray(parsed.tests) ? parsed.tests : [],
     curriculum: Array.isArray(parsed.curriculum) ? parsed.curriculum : [],
     selectedStudent: parsed.selectedStudent ?? null,
+    selectedView,
   };
 }
 
