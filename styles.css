@@ -195,6 +195,8 @@ body {
 
 .nav-label {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .nav-count {
@@ -379,7 +381,7 @@ body {
 
 .test-form,
 .curriculum-form {
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   align-items: end;
   margin-bottom: 1rem;
 }
@@ -393,9 +395,10 @@ body {
 label {
   display: grid;
   gap: 0.35rem;
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   font-weight: 600;
   color: var(--subtle);
+  min-width: 0;
 }
 
 input,
@@ -408,12 +411,20 @@ textarea {
 input,
 select,
 textarea {
+  width: 100%;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 0.6rem 0.75rem;
+  padding: 0.75rem 0.9rem;
+  font-size: 1rem;
   background: #fff;
   color: var(--text);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+textarea {
+  min-height: 4.5rem;
+  resize: vertical;
 }
 
 input:focus,

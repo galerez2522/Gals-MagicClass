@@ -544,6 +544,12 @@ function loadSharedStateFromUrl() {
     return null;
   }
 
+  // Remove the share param so future edits/refreshes use localStorage
+  // instead of being overridden by the stale URL snapshot.
+  const cleanUrl = new URL(window.location.href);
+  cleanUrl.searchParams.delete(SHARED_STATE_PARAM);
+  window.history.replaceState(null, "", cleanUrl.toString());
+
   return normalizeState(decodedState);
 }
 
