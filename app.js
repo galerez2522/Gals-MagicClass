@@ -2,6 +2,13 @@ const STORAGE_KEY = "aharens-math-dashboard-v1";
 const SHARED_STATE_PARAM = "data";
 const OVERVIEW_VIEW = "__overview__";
 
+const CURRICULUM_STATUSES = [
+  { value: "not_started", label: "לא הותחל" },
+  { value: "in_progress", label: "בהתקדמות" },
+  { value: "completed", label: "הסתיים" },
+  { value: "needs_review", label: "דרוש חזרה" },
+];
+
 const defaultState = {
   classes: [
     {
@@ -225,14 +232,32 @@ function renderClassView(classItem) {
           (item) => `
             <tr>
               <td>${item.topic}</td>
-              <td>${statusLabel(item.status)}</td>
-              <td>${item.coverage}%</td>
+              <td>
+                <select class="status-select ${statusSelectClass(item.status)}" data-curriculum-id="${item.id}">
+                  ${CURRICULUM_STATUSES.map(
+                    (status) =>
+                      `<option value="${status.value}" ${item.status === status.value ? "selected" : ""}>${status.label}</option>`,
+                  ).join("")}
+                </select>
+              </td>
+              <td>
+                <input
+                  type="number"
+                  class="coverage-input"
+                  data-curriculum-id="${item.id}"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value="${item.coverage}"
+                /> %
+              </td>
               <td>${item.note || "-"}</td>
+              <td><button class="danger-btn tiny-btn delete-curriculum-btn" data-curriculum-id="${item.id}" title="מחיקת נושא">✕</button></td>
             </tr>
           `,
         )
         .join("")
-    : `<tr><td colspan="4" class="empty-state">אין פריטי חומר לימודי עדיין.</td></tr>`;
+    : `<tr><td colspan="5" class="empty-state">אין פריטי חומר לימודי עדיין.</td></tr>`;
 
   mainContent.innerHTML = `
     <section class="panel class-header-panel">
@@ -299,9 +324,7 @@ function renderClassView(classItem) {
         <label>
           סטטוס
           <select name="status" required>
-            <option value="planned">מתוכנן</option>
-            <option value="in_progress">בתהליך</option>
-            <option value="completed">הושלם</option>
+            ${CURRICULUM_STATUSES.map((status) => `<option value="${status.value}">${status.label}</option>`).join("")}
           </select>
         </label>
         <label>
@@ -317,7 +340,7 @@ function renderClassView(classItem) {
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>נושא</th><th>סטטוס</th><th>כיסוי</th><th>הערה</th></tr>
+            <tr><th>נושא</th><th>סטטוס</th><th>כיסוי</th><th>הערה</th><th></th></tr>
           </thead>
           <tbody>${curriculumMarkup}</tbody>
         </table>
@@ -403,6 +426,37 @@ function bindClassViewEvents(classItem) {
 
     addCurriculumForm.reset();
     renderAll();
+  });
+
+  mainContent.querySelectorAll(".status-select").forEach((select) => {
+    select.addEventListener("change", () => {
+      const item = state.curriculum.find((entry) => entry.id === select.getAttribute("data-curriculum-id"));
+      if (!item) return;
+      item.status = select.value;
+      renderAll();
+    });
+  });
+
+  mainContent.querySelectorAll(".coverage-input").forEach((input) => {
+    input.addEventListener("change", () => {
+      const item = state.curriculum.find((entry) => entry.id === input.getAttribute("data-curriculum-id"));
+      if (!item) return;
+      const coverage = Number(input.value);
+      if (Number.isNaN(coverage)) return;
+      item.coverage = clamp(coverage, 0, 100);
+      renderAll();
+    });
+  });
+
+  mainContent.querySelectorAll(".delete-curriculum-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const itemId = btn.getAttribute("data-curriculum-id");
+      const item = state.curriculum.find((entry) => entry.id === itemId);
+      if (!item) return;
+      if (!window.confirm(`למחוק את הנושא "${item.topic}"?`)) return;
+      state.curriculum = state.curriculum.filter((entry) => entry.id !== itemId);
+      renderAll();
+    });
   });
 
   mainContent.querySelectorAll(".student-card").forEach((card) => {
@@ -496,9 +550,20 @@ function renderStudentDetail(classItem) {
 /* ---------- Helpers ---------- */
 
 function statusLabel(status) {
-  if (status === "completed") return "הושלם";
-  if (status === "in_progress") return "בתהליך";
-  return "מתוכנן";
+  return CURRICULUM_STATUSES.find((item) => item.value === status)?.label ?? "לא הותחל";
+}
+
+function statusSelectClass(status) {
+  if (status === "completed") return "status-select-good";
+  if (status === "in_progress") return "status-select-mid";
+  if (status === "needs_review") return "status-select-review";
+  return "status-select-none";
+}
+
+function normalizeCurriculumStatus(status) {
+  // Migrate legacy status values
+  if (status === "planned") return "not_started";
+  return CURRICULUM_STATUSES.some((item) => item.value === status) ? status : "not_started";
 }
 
 function getStatusClass(understanding) {
@@ -617,7 +682,10 @@ function normalizeState(parsed) {
   return {
     classes,
     tests: Array.isArray(parsed.tests) ? parsed.tests : [],
-    curriculum: Array.isArray(parsed.curriculum) ? parsed.curriculum : [],
+    curriculum: (Array.isArray(parsed.curriculum) ? parsed.curriculum : []).map((item) => ({
+      ...item,
+      status: normalizeCurriculumStatus(item.status),
+    })),
     selectedStudent: parsed.selectedStudent ?? null,
     selectedView,
   };

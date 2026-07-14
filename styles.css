@@ -541,6 +541,55 @@ button:active {
   color: #b91c1c;
 }
 
+/* ---------- Inline curriculum controls ---------- */
+
+.status-select {
+  width: auto;
+  min-width: 8.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.status-select-good {
+  background: var(--success-soft);
+  color: #047857;
+  border-color: #a7e8d0;
+}
+
+.status-select-mid {
+  background: var(--warning-soft);
+  color: #b45309;
+  border-color: #f5d9a8;
+}
+
+.status-select-review {
+  background: var(--danger-soft);
+  color: #b91c1c;
+  border-color: #f5b8b8;
+}
+
+.status-select-none {
+  background: #f3f4f8;
+  color: var(--subtle);
+}
+
+.coverage-input {
+  width: 4.5rem;
+  padding: 0.4rem 0.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.tiny-btn {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
 /* ---------- Student detail ---------- */
 
 .student-detail {
